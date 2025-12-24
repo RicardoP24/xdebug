@@ -277,21 +277,27 @@ function wpms_session_read($SessionID)
 			$debugURL = explode(":", $_SESSION["xdebug"]);
 			error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] wpms_session_read: xdebug={$_SESSION['xdebug']}", 3, "/www/debugSession.log");
 
-			// DIRECT CONNECTION for Xdebug 3
-			// ini_set is ignored for port/host in X3, so we use the API directly.
-			// We assume xdebug.mode includes 'debug' in php.ini
+			// ✅ SOLUÇÃO: Configurar APENAS para ESTE request via output buffering
+			// XDebug 3 permite ini_set() DURANTE o script!
+			ini_set('xdebug.client_host', $debugURL[0]);
+			ini_set('xdebug.client_port', $debugURL[1]);
+			ini_set('xdebug.idekey', $debugURL[2]);
+			ini_set('xdebug.mode', 'debug');
+			ini_set('xdebug.start_with_request', 'yes'); // Forçar ativação
 
-			error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] Tentando ligar diretamente: Host={$debugURL[0]} Port={$debugURL[1]}", 3, "/www/debugSession.log");
+			// ✅ Também setar cookie para trigger mode
+			setcookie('XDEBUG_SESSION', $debugURL[2], 0, '/');
+			$_COOKIE['XDEBUG_SESSION'] = $debugURL[2];
 
-			if (function_exists('xdebug_connect_to_client')) {
-				if (@xdebug_connect_to_client($debugURL[0], (int) $debugURL[1])) {
-					error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] XDebug conectado! Chamando xdebug_break()", 3, "/www/debugSession.log");
-					xdebug_break();
-				} else {
-					error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] xdebug_connect_to_client FALHOU", 3, "/www/debugSession.log");
-				}
+			// ✅ Tentar conectar (manter tua lógica)
+			error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] Conectando ao XDebug...", 3, "/www/debugSession.log");
+
+			if (@xdebug_connect_to_client($debugURL[0], (int) $debugURL[1])) {
+				error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] XDebug conectado! Chamando xdebug_break()", 3, "/www/debugSession.log");
+				xdebug_break();
+				error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] xdebug_break() executado", 3, "/www/debugSession.log");
 			} else {
-				error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] ERRO: Função xdebug_connect_to_client não existe.", 3, "/www/debugSession.log");
+				error_log("[" . date('Y-m-d H:i:s') . "][SSID:$SSID][SESS:$SESS] xdebug_connect_to_client FALHOU", 3, "/www/debugSession.log");
 			}
 		}
 	} elseif (!$EVE || $SESS != "0") {
